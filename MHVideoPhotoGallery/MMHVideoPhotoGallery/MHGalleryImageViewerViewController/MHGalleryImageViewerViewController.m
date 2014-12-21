@@ -11,6 +11,7 @@
 #import "MHTransitionShowShareView.h"
 #import "MHTransitionShowOverView.h"
 #import "MHGallerySharedManagerPrivate.h"
+#import "UIAlertView+Blocks.h"
 
 @implementation MHPinchGestureRecognizer
 @end
@@ -20,6 +21,8 @@
 @property (nonatomic, strong) UIBarButtonItem          *leftBarButton;
 @property (nonatomic, strong) UIBarButtonItem          *rightBarButton;
 @property (nonatomic, strong) UIBarButtonItem          *playStopBarButton;
+@property (nonatomic, strong) UIBarButtonItem          *deleteBarButton;
+
 @end
 
 @implementation MHGalleryImageViewerViewController
@@ -70,7 +73,6 @@
     }
     MHTransitionDismissMHGallery *dismissTransiton = [MHTransitionDismissMHGallery new];
     dismissTransiton.orientationTransformBeforeDismiss = [(NSNumber *)[self.navigationController.view valueForKeyPath:@"layer.transform.rotation.z"] floatValue];
-    dismissTransiton.finishButtonAction = YES;
     imageViewer.interactiveTransition = dismissTransiton;
     
     MHGalleryController *galleryViewController = [self galleryViewController];
@@ -161,6 +163,11 @@
                                                         target:self
                                                         action:@selector(rightPressed:)];
     
+    self.deleteBarButton = [UIBarButtonItem.alloc initWithImage:MHGalleryImage(@"trash")
+                                                          style:UIBarButtonItemStyleBordered
+                                                         target:self
+                                                         action:@selector(deletePressed:)];
+    
     self.shareBarButton = [UIBarButtonItem.alloc initWithBarButtonSystemItem:UIBarButtonSystemItemAction
                                                                       target:self
                                                                       action:@selector(sharePressed)];
@@ -168,8 +175,8 @@
     if (self.UICustomization.hideShare) {
         
         self.shareBarButton = [UIBarButtonItem.alloc initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace
-                                                                             target:self
-                                                                             action:nil];
+                                                                          target:self
+                                                                          action:nil];
         self.shareBarButton.width = 30;
     }
     
@@ -398,7 +405,11 @@
         }
         self.toolbar.items = @[self.shareBarButton,flex,self.leftBarButton,flex,self.playStopBarButton,flex,self.rightBarButton,flex,fixed];
     }else{
-        self.toolbar.items =@[self.shareBarButton,flex,self.leftBarButton,flex,self.rightBarButton,flex,fixed];
+        if(item.canDelete != nil && [item.canDelete boolValue]) {
+            self.toolbar.items =@[flex,self.shareBarButton,flex,self.leftBarButton,flex,self.rightBarButton,flex, self.deleteBarButton,flex];
+        } else {
+            self.toolbar.items =@[flex,self.shareBarButton,flex,self.leftBarButton,flex,self.rightBarButton,flex];
+        }
     }
 }
 
@@ -442,7 +453,7 @@
     if (theCurrentViewController.moviePlayer) {
         [theCurrentViewController removeAllMoviePlayerViewsAndNotifications];
     }
-
+    
     NSUInteger indexPage = theCurrentViewController.pageIndex;
     MHImageViewController *imageViewController =[MHImageViewController imageViewControllerForMHMediaItem:[self itemForIndex:indexPage-1] viewController:self];
     imageViewController.pageIndex = indexPage-1;
@@ -470,7 +481,7 @@
     if (theCurrentViewController.moviePlayer) {
         [theCurrentViewController removeAllMoviePlayerViewsAndNotifications];
     }
-
+    
     NSUInteger indexPage = theCurrentViewController.pageIndex;
     MHImageViewController *imageViewController =[MHImageViewController imageViewControllerForMHMediaItem:[self itemForIndex:indexPage+1] viewController:self];
     imageViewController.pageIndex = indexPage+1;
@@ -489,6 +500,22 @@
         [weakSelf updateToolBarForItem:[weakSelf itemForIndex:weakSelf.pageIndex]];
         [weakSelf showCurrentIndex:weakSelf.pageIndex];
     }];
+}
+
+-(void)deletePressed:(id)sender{
+    MHGalleryController *galleryViewController = [self galleryViewController];
+    if (galleryViewController.deleteCallback) {
+        [UIAlertView showWithTitle:@"Delete Image?"
+                           message:@"Are you sure you want to permanently delete this image?"
+                 cancelButtonTitle:@"Cancel"
+                 otherButtonTitles:@[@"Delete"]
+                          tapBlock:^(UIAlertView *alertView, NSInteger buttonIndex) {
+                              if ([[alertView buttonTitleAtIndex:buttonIndex] isEqualToString:@"Delete"]) {
+                                  MHImageViewController *theCurrentViewController = self.pageViewController.viewControllers.firstObject;
+                                  galleryViewController.deleteCallback(theCurrentViewController.pageIndex);
+                              }
+                          }];
+    }
 }
 
 -(void)showCurrentIndex:(NSInteger)currentIndex{
@@ -933,7 +960,6 @@
             }
         }];
     }
-    
 }
 
 -(void)autoPlayVideo{
@@ -1102,26 +1128,26 @@
 }
 
 - (void)loadStateDidChange:(NSNotification *)notification{
-	MPMoviePlayerController *player = notification.object;
-	MPMovieLoadState loadState = player.loadState;
-	if (loadState & MPMovieLoadStatePlayable){
+    MPMoviePlayerController *player = notification.object;
+    MPMovieLoadState loadState = player.loadState;
+    if (loadState & MPMovieLoadStatePlayable){
         if (!self.videoWasPlayable) {
             [self performSelectorOnMainThread:@selector(changeToPlayable)
                                    withObject:nil
                                 waitUntilDone:YES];
         }
         
-	}
+    }
     if (loadState & MPMovieLoadStatePlaythroughOK){
         self.videoDownloaded = YES;
-	}
-	
-	if (loadState & MPMovieLoadStateStalled){
+    }
+    
+    if (loadState & MPMovieLoadStateStalled){
         
         [self performSelectorOnMainThread:@selector(stopMovie)
                                withObject:nil
                             waitUntilDone:YES];
-	}
+    }
 }
 
 -(void)updateTimerLabels{
@@ -1247,7 +1273,7 @@
                                                name:MPMoviePlayerPlaybackDidFinishNotification
                                              object:self.moviePlayer];
     
-    self.moviePlayer.shouldAutoplay = NO;
+    self.moviePlayer.shouldAutoplay =NO;
     self.moviePlayer.view.frame = self.view.bounds;
     self.moviePlayer.view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     self.moviePlayer.view.hidden = YES;
@@ -1352,23 +1378,21 @@
                 }
             }
         }
+        
         self.moviePlayerToolBarTop.frame =CGRectMake(0,44+([UIApplication sharedApplication].statusBarHidden?0:20), self.view.frame.size.width, 44);
         if (!MHISIPAD) {
             if (UIApplication.sharedApplication.statusBarOrientation != UIInterfaceOrientationPortrait) {
                 self.moviePlayerToolBarTop.frame =CGRectMake(0,32+([UIApplication sharedApplication].statusBarHidden?0:20), self.view.frame.size.width, 44);
             }
         }
-        
     }
 }
 
 -(void)changeUIForViewMode:(MHGalleryViewMode)viewMode{
     float alpha =0;
-    
     if (viewMode == MHGalleryViewModeImageViewerNavigationBarShown) {
-        alpha= 1;
+        alpha =1;
     }
-
     self.moviePlayer.backgroundView.backgroundColor = [self.viewController.UICustomization MHGalleryBackgroundColorForViewMode:viewMode];
     self.scrollView.backgroundColor = [self.viewController.UICustomization MHGalleryBackgroundColorForViewMode:viewMode];
     self.viewController.pageViewController.view.backgroundColor = [self.viewController.UICustomization MHGalleryBackgroundColorForViewMode:viewMode];
@@ -1378,14 +1402,6 @@
     
     self.viewController.descriptionView.alpha =alpha;
     self.viewController.descriptionViewBackground.alpha =alpha;
-
-    UIInterfaceOrientation currentOrientation = UIApplication.sharedApplication.statusBarOrientation;
-    BOOL isLandscape = UIInterfaceOrientationIsLandscape(currentOrientation);
-    BOOL isPhone = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone;
-
-    if (MHGalleryOSVersion >= 8.0 && isLandscape && isPhone) {
-        alpha = 0;
-    }
     MHStatusBar().alpha =alpha;
 }
 
@@ -1497,8 +1513,7 @@
     }
     self.playButton.frame = CGRectMake(self.viewController.view.frame.size.width/2-36, self.viewController.view.frame.size.height/2-36, 72, 72);
     self.scrollView.contentSize = CGSizeMake(self.view.bounds.size.width*self.scrollView.zoomScale, self.view.bounds.size.height*self.scrollView.zoomScale);
-    self.imageView.frame = CGRectMake(0,0 , self.scrollView.contentSize.width,self.scrollView.contentSize.height);
-
+    self.imageView.frame =CGRectMake(0,0 , self.scrollView.contentSize.width,self.scrollView.contentSize.height);
 }
 
 -(void)didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation{

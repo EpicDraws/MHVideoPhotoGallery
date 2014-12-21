@@ -15,10 +15,7 @@
 @property (nonatomic,assign) CGFloat toTransform;
 @property (nonatomic,assign) CGFloat startTransform;
 @property (nonatomic,assign) CGRect startFrame;
-@property (nonatomic,assign) CGPoint startCenter;
-
 @property (nonatomic,assign) CGRect navFrame;
-@property (nonatomic,assign) BOOL wrongTransform;
 
 @property (nonatomic,assign) BOOL hasActiveVideo;
 @property (nonatomic,strong) UIView *backView;
@@ -155,7 +152,6 @@
     self.cellImageSnapshot.image = image;
     [self.cellImageSnapshot setFrame:AVMakeRectWithAspectRatioInsideRect(image.size,fromViewController.view.bounds)];
     self.startFrame = self.cellImageSnapshot.frame;
-    self.startCenter = self.cellImageSnapshot.center;
     
     [imageViewer.pageViewController.view setHidden:YES];
     
@@ -173,16 +169,13 @@
     [self.containerView addSubview:[toViewControllerNC view]];
     [self.containerView addSubview:self.backView];
     
+    
     self.toTransform = [(NSNumber *)[[toViewControllerNC view] valueForKeyPath:@"layer.transform.rotation.z"] floatValue];
     self.startTransform = [(NSNumber *)[self.containerView valueForKeyPath:@"layer.transform.rotation.z"] floatValue];
     
-    self.wrongTransform = NO;
     if ([toViewControllerNC view].frame.size.width >[toViewControllerNC view].frame.size.height && self.toTransform ==0) {
         self.toTransform = self.startTransform;
-        self.wrongTransform = YES;
     }
-
-    
     
     if (imageViewerCurrent.isPlayingVideo && imageViewerCurrent.moviePlayer) {
         self.moviePlayer = imageViewerCurrent.moviePlayer;
@@ -197,23 +190,23 @@
         self.transitionImageView.hidden = YES;
     }
     self.navFrame = fromViewController.navigationBar.frame;
-    if (self.toTransform != self.orientationTransformBeforeDismiss && !self.wrongTransform) {
+    if (self.toTransform != self.orientationTransformBeforeDismiss) {
         if (self.moviePlayer) {
             [self.moviePlayer.view setFrame:AVMakeRectWithAspectRatioInsideRect(imageViewerCurrent.moviePlayer.naturalSize,CGRectMake(0, 0, fromViewController.view.bounds.size.width, fromViewController.view.bounds.size.height))];
             self.moviePlayer.view.transform = CGAffineTransformMakeRotation(self.orientationTransformBeforeDismiss);
             self.moviePlayer.view.center = UIApplication.sharedApplication.keyWindow.center;
             self.startFrame = self.moviePlayer.view.bounds;
-            self.startCenter = self.moviePlayer.view.center;
+            
         }else{
             [self.cellImageSnapshot setFrame:AVMakeRectWithAspectRatioInsideRect(image.size,CGRectMake(0, 0, fromViewController.view.bounds.size.width, fromViewController.view.bounds.size.height))];
             self.cellImageSnapshot.transform = CGAffineTransformMakeRotation(self.orientationTransformBeforeDismiss);
             self.cellImageSnapshot.center = UIApplication.sharedApplication.keyWindow.center;
             self.startFrame = self.cellImageSnapshot.bounds;
-            self.startCenter = self.cellImageSnapshot.center;
         }
         self.startTransform = self.orientationTransformBeforeDismiss;
     }
 }
+
 
 -(void)updateInteractiveTransition:(CGFloat)percentComplete{
     [super updateInteractiveTransition:percentComplete];
@@ -229,7 +222,7 @@
             self.moviePlayer.view.frame = CGRectMake(self.moviePlayer.view.frame.origin.x-self.changedPoint.x, self.moviePlayer.view.frame.origin.y-self.changedPoint.y, self.moviePlayer.view.frame.size.width, self.moviePlayer.view.frame.size.height);
         }
     }else{
-        if (self.toTransform != self.orientationTransformBeforeDismiss && !self.wrongTransform) {
+        if (self.toTransform != self.orientationTransformBeforeDismiss) {
             if (self.orientationTransformBeforeDismiss <0) {
                 self.cellImageSnapshot.center = CGPointMake(self.cellImageSnapshot.center.x-self.changedPoint.y, self.cellImageSnapshot.center.y+self.changedPoint.x);
             }else{
@@ -245,7 +238,7 @@
     [super finishInteractiveTransition];
     
     CGFloat delayTime  = 0.0;
-    if (self.toTransform != self.orientationTransformBeforeDismiss && self.transitionImageView  && !self.wrongTransform) {
+    if (self.toTransform != self.orientationTransformBeforeDismiss) {
         [UIView animateWithDuration:0.2 animations:^{
             if (self.moviePlayer) {
                 self.moviePlayer.view.transform = CGAffineTransformMakeRotation(self.toTransform);
@@ -258,8 +251,6 @@
     double delayInSeconds = delayTime;
     dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
     dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-        
-        
         
         if (self.transitionImageView.contentMode == UIViewContentModeScaleAspectFill) {
             [self.cellImageSnapshot animateToViewMode:UIViewContentModeScaleAspectFill
@@ -281,23 +272,8 @@
             if (self.moviePlayer) {
                 self.moviePlayer.view.frame = [self.containerView convertRect:self.transitionImageView.frame fromView:self.transitionImageView.superview];
             }else{
-                if (!self.transitionImageView) {
-                    CGPoint newPoint = self.startCenter;
-                    if (self.cellImageSnapshot.center.x > self.startCenter.x) {
-                        newPoint.x = self.cellImageSnapshot.center.x + abs(self.cellImageSnapshot.center.x -self.startCenter.x)*4;
-                    }else{
-                        newPoint.x = self.cellImageSnapshot.center.x - abs(self.cellImageSnapshot.center.x -self.startCenter.x)*4;
-                    }
-                    if (self.cellImageSnapshot.center.y > self.startCenter.y) {
-                        newPoint.y = self.cellImageSnapshot.center.y + abs(self.cellImageSnapshot.center.y -self.startCenter.y)*4;
-                    }else{
-                        newPoint.y = self.cellImageSnapshot.center.y - abs(self.cellImageSnapshot.center.y -self.startCenter.y)*4;
-                    }
-                    self.cellImageSnapshot.center = newPoint;
-                }else{
-                    if (self.transitionImageView.contentMode == UIViewContentModeScaleAspectFit) {
-                        self.cellImageSnapshot.frame = [self.containerView convertRect:self.transitionImageView.frame fromView:self.transitionImageView.superview];
-                    }
+                if (self.transitionImageView.contentMode == UIViewContentModeScaleAspectFit) {
+                    self.cellImageSnapshot.frame = [self.containerView convertRect:self.transitionImageView.frame fromView:self.transitionImageView.superview];
                 }
             }
             
@@ -360,7 +336,6 @@
         
         if ([self.context respondsToSelector:@selector(viewForKey:)]) { // is on iOS 8?
             [UIApplication.sharedApplication.keyWindow addSubview:fromViewController.view];
-            self.moviePlayer = nil;
         }
         
         [self.context completeTransition:NO];

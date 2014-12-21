@@ -72,6 +72,7 @@
 +(instancetype)galleryWithPresentationStyle:(MHGalleryViewMode)presentationStyle;
 
 @property (nonatomic, copy) void (^finishedCallback)(NSUInteger currentIndex,UIImage *image,MHTransitionDismissMHGallery *interactiveTransition,MHGalleryViewMode viewMode);
+@property (nonatomic, copy) void (^deleteCallback)(NSUInteger currentIndex);
 
 @end
 

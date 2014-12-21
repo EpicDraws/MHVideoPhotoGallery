@@ -98,11 +98,7 @@
             cellImageSnapshot.frame =[containerView convertRect:cellNew.thumbnail.frame fromView:cellNew.thumbnail.superview];
             cellImageSnapshot.contentMode = UIViewContentModeScaleAspectFill;
         } completion:^(BOOL finished) {
-            
-            if (MHGalleryOSVersion < 8.0) {
-                [toViewController.collectionView reloadData];
-            }
-            
+            [toViewController.collectionView reloadData];
             [cellImageSnapshot removeFromSuperview];
             imageView.hidden = NO;
             cellNew.thumbnail.hidden =NO;
