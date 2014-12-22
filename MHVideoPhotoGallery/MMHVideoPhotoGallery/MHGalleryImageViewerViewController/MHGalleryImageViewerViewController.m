@@ -282,20 +282,11 @@
 }
 
 -(void)sharePressed{
-    if (self.UICustomization.showMHShareViewInsteadOfActivityViewController) {
-        MHShareViewController *share = [MHShareViewController new];
-        share.pageIndex = self.pageIndex;
-        share.galleryItems = self.galleryItems;
-        [self.navigationController pushViewController:share
-                                             animated:YES];
-    }else{
-        UIActivityViewController *act = [UIActivityViewController.alloc initWithActivityItems:@[[(MHImageViewController*)self.pageViewController.viewControllers.firstObject imageView].image] applicationActivities:nil];
-        [self presentViewController:act animated:YES completion:nil];
-        
-        if ([act respondsToSelector:@selector(popoverPresentationController)]) {
-            act.popoverPresentationController.barButtonItem = self.shareBarButton;
-        }
-        
+    UIActivityViewController *act = [UIActivityViewController.alloc initWithActivityItems:@[@"Created with Social Stitch. http://socialstitch.parseapp.com", [(MHImageViewController*)self.pageViewController.viewControllers.firstObject imageView].image] applicationActivities:nil];
+    [self presentViewController:act animated:YES completion:nil];
+    
+    if ([act respondsToSelector:@selector(popoverPresentationController)]) {
+        act.popoverPresentationController.barButtonItem = self.shareBarButton;
     }
 }
 
